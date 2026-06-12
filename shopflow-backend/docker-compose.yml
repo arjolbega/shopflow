@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  # ── Each "service" is one container ──────────────────
+
+  mysql:
+    image: mysql:8.0 # pull this image from Docker Hub
+    container_name: shopflow_mysql
+    restart: unless-stopped # restart if it crashes, but not if you manually stop it
+    environment: # environment variables passed into the container
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: shopflow
+      MYSQL_USER: shopflow
+      MYSQL_PASSWORD: shopflow_password
+    ports:
+      - "3306:3306" # host_port:container_port
+        # lets you connect from your machine (TablePlus etc.)
+    volumes:
+      - mysql_data:/var/lib/mysql
+        # named volume — MySQL stores data here
+        # survives container restarts (without this, data is lost when container stops)
+      - ./src/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+        # mounts your schema file into MySQL's init folder
+        # MySQL auto-runs any .sql file here on first startup
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s # check every 10 seconds
+      timeout: 5s # fail if no response in 5 seconds
+      retries: 5 # mark as unhealthy after 5 failures
+
+  backend:
+    build: . # build image using Dockerfile in current directory
+    container_name: shopflow_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file: .env # load all variables from your .env file
+    depends_on:
+      mysql:
+        condition: service_healthy
+        # don't start backend until MySQL healthcheck passes
+        # without this, backend starts, MySQL isn't ready, connection fails
+    volumes:
+      - ./src:/app/src # mount local src into container for hot reload in dev
+
+  redis:
+    image: redis:7-alpine # tiny Redis image
+    container_name: shopflow_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+# Named volumes — managed by Docker, persist between restarts
+volumes:
+  mysql_data:

@@ -1,0 +1,119 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**" # only runs when backend files change
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/shopflow-backend
+
+jobs:
+  # ── Job 1: Type Check + Build ──────────────────────
+  check:
+    name: Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: TypeScript type check
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Test build
+        working-directory: backend
+        run: npm run build
+
+  # ── Job 2: Build + Push Docker Image ───────────────
+  # Only runs on push to main (not on pull requests)
+  docker:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: check # only runs if check passes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      packages: write # needed to push to GitHub Container Registry
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # auto-provided by GitHub
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-          # tag with git commit SHA
+            type=raw,value=latest         # also tag as latest
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gistry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-to: type=inline # cache layers inline for faster builds
+
+  # ── Job 3: Deploy to Production ────────────────────
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            # Pull latest image
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Navigate to app directory
+            cd /opt/shopflow
+
+            # Pull new backend image
+            docker pull ghcr.io/${{ github.repository }}/shopflow-backend:latest
+
+            # Restart backend container with zero downtime
+            docker compose -f docker-compose.prod.yml up -d --no-deps backend
+
+            # Clean up old images
+            docker image prune -f
+
+            echo "✅ Backend deployed successfully"
