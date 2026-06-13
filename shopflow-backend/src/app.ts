@@ -1,9 +1,21 @@
+import dotenv from "dotenv";
+dotenv.config();
+
+const REQUIRED_ENV_VARS = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME", "ACCESS_TOKEN_SECRET", "REFRESH_TOKEN_SECRET", "STRIPE_SECRET_KEY", "FRONTEND_URL"];
+
+const missingVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+if (missingVars.length > 0) {
+  console.error("❌ Missing required environment variables:", missingVars.join(", "));
+  process.exit(1);
+}
+
+console.log("✅ Environment variables validated");
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import dotenv from "dotenv";
 import adminRoutes from "./routes/admin.routes";
 import authRoutes from "./routes/auth.routes";
 import cartRoutes from "./routes/cart.routes";
@@ -13,8 +25,6 @@ import productRoutes from "./routes/product.routes";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFoundHandler } from "./middlewares/notFound";
 import pool from "./config/db";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
