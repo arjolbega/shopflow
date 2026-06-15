@@ -6,6 +6,11 @@ const REQUIRED_ENV_VARS = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME", "ACCE
 const missingVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
 if (missingVars.length > 0) {
   console.error("❌ Missing required environment variables:", missingVars.join(", "));
+  console.log("DB_HOST =", process.env.DB_HOST);
+  console.log("DB_USER =", process.env.DB_USER);
+  console.log("DB_NAME =", process.env.DB_NAME);
+  console.log("\n");
+
   process.exit(1);
 }
 
