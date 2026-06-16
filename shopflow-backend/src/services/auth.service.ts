@@ -57,6 +57,8 @@ export async function registerUser(input: RegisterInput) {
   console.log("===email===");
 
   try {
+    console.log("sendMail!!");
+
     await mailer.sendMail({
       from: process.env.SMTP_FROM,
       to: email,
