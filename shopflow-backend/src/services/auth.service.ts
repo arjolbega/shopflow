@@ -55,12 +55,16 @@ export async function registerUser(input: RegisterInput) {
   const verificationUrl = verifyEmailUrl(rawToken);
   const { subject, html } = verificationEmailTemplate(first_name, verificationUrl);
 
-  await mailer.sendMail({
-    from: process.env.SMTP_FROM,
-    to: email,
-    subject,
-    html
-  });
+  try {
+    await mailer.sendMail({
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject,
+      html
+    });
+  } catch (error) {
+    console.error("Email error:", error);
+  }
 
   return { id: userId, email, first_name, last_name };
 }
