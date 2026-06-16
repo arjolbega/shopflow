@@ -54,6 +54,7 @@ export async function registerUser(input: RegisterInput) {
   // Send verification email
   const verificationUrl = verifyEmailUrl(rawToken);
   const { subject, html } = verificationEmailTemplate(first_name, verificationUrl);
+  console.log("===email===");
 
   try {
     await mailer.sendMail({
