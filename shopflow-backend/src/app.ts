@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const REQUIRED_ENV_VARS = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME", "ACCESS_TOKEN_SECRET", "REFRESH_TOKEN_SECRET", "STRIPE_SECRET_KEY", "FRONTEND_URL"];
+console.log("frontene:::", process.env.FRONTEND_URL);
 
 const missingVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
 if (missingVars.length > 0) {
