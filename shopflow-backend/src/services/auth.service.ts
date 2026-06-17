@@ -54,20 +54,15 @@ export async function registerUser(input: RegisterInput) {
   // Send verification email
   const verificationUrl = verifyEmailUrl(rawToken);
   const { subject, html } = verificationEmailTemplate(first_name, verificationUrl);
-  console.log("===email===");
 
   try {
-    console.log("sendMail!!");
-
     await mailer.sendMail({
       from: process.env.SMTP_FROM,
       to: email,
       subject,
       html
     });
-  } catch (error) {
-    console.error("Email error:", error);
-  }
+  } catch (error) {}
 
   return { id: userId, email, first_name, last_name };
 }
